@@ -1,18 +1,18 @@
-' {$STAMP BS2p, BIOS_S1_561.bsp, BIOS_S2_561.bsp, BIOS_S3_560.bsp, BIOS_S4_560.bsp, BIOS_S5_560.bsp, BIOS_S6_560.bsp, BIOS_S7_560.bsp}
+' {$STAMP BS2p}
 ' {$PBASIC 2.5}
-' {$PORT COM1}
-'**************************************************
+' {$PORT COM9}
+'************************************************************************
 '
-'  Program Slot 0 = Start Up and main control loop for
-'                   Heartbeats, McMek Checks, and Event Table Access
+' 2011 ISS BIOS System Entry Points
+'
+'  Program Slot 7 = BIOS System Entry Points
 '
 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 'XXXXXXXX >>  Start Here to Copy Header entries  <<  XXXXXXXXXXXXXXXXXX
 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 '
-version   CON    560   'Associatitive Event Table.
-                       'S2 contains the event table AND actions.
-                       'S1 contains test code placeholder
+version   CON    560
+'
 ' 2012
 ' 1. added test for payload interface boards
 ' 2. clean slot 0, added time 0,1,2 for clock speed
@@ -20,7 +20,7 @@ version   CON    560   'Associatitive Event Table.
 '******************  Start of System Global lables *******************
 '     Conditional Assemblies
 '
-#DEFINE FlyConfig = 0              '1=Set to Flight Configuration, 0=Test Configuration
+#DEFINE FlyConfig = 1              '1=Set to Flight Configuration, 0=Test Configuration
 #DEFINE fastclock = 2              '0=Normal Time X1, 1=Medium Time ~X17 2=Fast Time ~X60
 #DEFINE testreset = 1              '1=test reset and reset count
 #DEFINE SaySlot   = 1              '1=Say Slot with vector
@@ -287,7 +287,6 @@ UserVar2    VAR Byte         'user Varible space - Should be same across all slo
 UserVar3    VAR Byte         'user Varible space - Should be same across all slots
 UserVar4    VAR Byte         'user Varible space - Should be same across all slots
 UserVar5    VAR Byte         'user Varible space - Should be same across all slots
-
 '
 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ' Calibration values must be calculated and writen through the test system write eeram
@@ -303,417 +302,505 @@ SysCPUcal    CON   $C002    'External E2RAM calibration locations
 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 '
 '
-Main:
-  #IF SaySlot=1 #THEN DEBUG ">S0-V",DEC TempReg1," " #ENDIF
-  '
-  GET Resetverify,TempReg0              'To test for Reset, if=0 was reset, if<>0 then slot return
-  IF  TempReg0=0 THEN WasReset          'entry was From HARD Reset
-  '
-  '  Was not a reset due to Resetverify flag being set
-  '  must be a slot return or jump from another slot
-  '  Use VectorFromNumber for index to jump table to go to the
-  '  position in the program for a return or other, Note: VectorFromNumber
-  '  is set when leaving the slot.
-  '
-  GET   VectorFromNum,TempReg0           'entry vector number
-  BRANCH TempReg0,[systeminitReturn,     '0 System Init Return Vector
-  McMekAttn1Return,                      '1 Return from McMek command processor
-  TakePhotoReturn,                       '2 Return from Take photo proceedure
-  HeartBeat3Return,                      '3 Return from Heart Beat proceedure
-  EventTableReturn,                      '4 Return from EventTable
-  BeforePhotoReturn,                     '5 Photo before chamber return
-  InitDacReturn,                         '6 init chamber
-  ResetChamberReturn,                    '7 reset chamber to o fields
-  SimDownloadReturn,                     '8 return from simulated file downloaded
-  McMekAttn9Return,                      '9 Return from McMek command processor
-  McMekAttn10Return,                     '10 Return from McMek command processor
-  HeartBeat11Return,                     '11 Return from Heart Beat proceedure
-  HeartBeat12Return]                     '12 Return from Heart Beat proceedure
-  '
-  '
-TakePhotoReturn:
-BeforePhotoReturn:
-InitDacReturn:    'need correction?????????????????????????
-ResetChamberReturn: '?????????????????????????????????????
-SimDownloadReturn:
-McMekAttn9Return:
-McMekAttn10Return:
-HeartBeat11Return:
-HeartBeat12Return:
-  DEBUG "Slot Return Error 0"
-
-  '
-  '******************************************************
-  '------------  Reset code do not change ---------------
-  '******************************************************
-  ' At reset this will jump to program 0 in slot 7 with a
-  ' return index of 0 or the origination program.  Note
-  ' the VectorFromNum = index to the jump table above which
-  ' will vector the processor to begin executing the program
-  ' at the branch index jump table
-  '
-WasReset:                               'Need to do a Full System Init go there now
-    PUT   Resetverify,1                 'Set Resetverify to State #1 processing
-    TempReg0=0                          'Originating program this slot
-    TempReg1=0                          'to program number in slot 7 Full Init system
-    TempReg3 = 7                        'set to go to slot 7
-    '                                   'Fall through to RunSlot Routine
-    '
- '*************** Slot Vectoring System ******************************************
- ' RUN a Program in Slot X
- ' ENTEr TempReg0 = Originating program withIN current slot, vector info to com back to
- '       TempReg1 = Program number in slot tO run
- '       TempReg3 = Slot to Run
- '********************************************************************************
-    '
-RuNSLOT:                                'enter tempreg3 = slot
-    PUT VectorFromNum,TempReg0          'from program xx of current slot
-    GET SlotInfo, TempReg0.NIB0         'get current running program slot
-    PUT VectorFromSlot,TempReg0.NIB0    'Set current slot to 0 for this is slot 0
-    RUN TempReg3                        'run program in slot 7
-    '
-   '****************************************************************************
-   '  This is the entry point from Bios System init operations at power on Reset
-   '****************************************************************************
-    '
-systeminitReturn:                       'return location from slot 7
-    '
-    DEBUG CR,"Payload Power Initialization"
-    FOR tempreg0 = 0 TO 10
-      OUT8=0
-      OUT9=1
-      OUTPUT 8
-      OUTPUT 9
-      xcounter = $ff
-twiddleDum:
-      xcounter = xcounter -1
-      IF xcounter <> 0 THEN twiddleDum
-      'OUT8=1
-      'OUT9=0
-      'OUTPUT 8
-      'OUTPUT 9
-      HIGH 8
-      LOW 9
-      xcounter = $ff
-twiddleDee:
-      XCOuNTer = xcounter -1
-      IF xcounter <> 0 THEN twiddleDee
-      'DEBUG CR,"Payload Power Init = ",DEC tempreg0
-    NEXT
-    DEBUG CR,"Done with Payload Power On",CR,CR
-
-
-    '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ' Place User Power on System Init and Setup Here  !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    '
- 'Check for Flight Configeration or test Configuration
-    '
-    #IF FlyConfig = 1 #THEN GOTO FlightStart #ENDIF '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    '
-    '   Not flight configuration Return Here after system Init
-    '
-'*******************************************************
-'------  Start testing program after system init -------
-'********************************************************
+'special define for this slot
 '
-    DEBUG CR,CR,"Test Enabled Ver",DEC3 version,CR            'Say hello with version number
-LOOP1:
-    DEBUG "Test   = t",CR                     'display what to do
-    DEBUG "Flight = f",CR,">"              'display what to do
-Ready:
-    SERIN con_in,con_baud,con_tout,inputtimeout,[TempReg0] 'get terminal input, timeout at 100ms
-    IF TempReg0 = "t" THEN GetTestType                     'test for t if t then jump
-    IF TempReg0 = "f" THEN FlightStart                     'test for f
-    DEBUG CR,"? t or f >",(TempReg0),CR               'incorrect key pushed
-    GOTO loop1                                             'now lets try that again
-inputtimeout:
-    'watchdog refresh here, if not a reset system will occur once watchdog is installed
-    GOTO Ready                              'finished with watchdog go back
-    '
-    '**************************************************
-    '--------- Direct Jump to Slot 5 test program ------
-    '**************************************************
-    '
-GetTestType:
-    DEBUG CR,"MicroLab or Payload Test?",CR
-    DEBUG "MicroLab Test = s (requires Payload Test Interface)",CR  'Microlab test (Slot 7)
-    DEBUG "Payload Test = p",CR                                     'Slot 1 holds Payload Tests
-WhichTest:
-    SERIN con_in,con_baud,con_tout,inputtimeout1,[TempReg0] 'get terminal input, timeout at 100ms
-    IF TempReg0 = "s" THEN SystemTest                     'if s then jump
-    IF TempReg0 = "p" THEN PayloadTest                     'test for p
-    DEBUG CR,"? s or p >",(TempReg0),CR               'incorrect key pushed
-    GOTO GetTestType:                                  'try try again - hopeless
-inputtimeout1:
-    GOTO WhichTest
-
-
-PayloadTest:
-    TempReg0=0   'Return Index to SystemInitReturn
-    TempReg1=0   'Destination Index
-    TempReg3 =1  'Destination Slot
-    GOTO RunSlot
-
-SystemTest:                        'this will go to start running in slot 7
-    TempReg1 = 0                   'Set to take the 0 vector in the branch table
-    TempReg0 = 0                   'Set to return after System init
-    TempReg3 = 5                   'Set to goto Slot 5
-    GOTO RunSlot                   'Save return and jump info do it
-    '
-'********************************************
-'  McMek Master needs attention or requesting action
-'  Command Process is in Slot 6, index vector 1
-'  insert return index vector in TempReg0
-'********************************************
+#DEFINE Notakeanddownload = 0    'remove take and download code to make room
 '
-McMekAttn10:                        'set up for return vector 9
-    #IF nodebug = 0 #THEN
-    DEBUG "CP-10 "                'just for test
-    #ENDIF
-    TempReg0 = 10                   'set to return vector 9
-    GOTO McMekAttn                 'enter vector setup
-McMekAttn9:                        'set up for return vector 9
-    #IF nodebug = 0 #THEN
-    DEBUG "CP-9 "                'just for test
-    #ENDIF
-    TempReg0 = 9                   'set to return vector 9
-    GOTO McMekAttn                 'enter vector setup
-McMekAttn1:
-    #IF nodebug = 0 #THEN
-    DEBUG "CP-1 "            'Receive line is low McMek needs attention
-    #ENDIF
-    TempReg0 = 1                   'Set to return vector in this slot McMekAttn1Return
-McMekAttn:
-    TempReg1 = 0                   'Set to take the 0 vector in the branch table
-    TempReg3 = 6                   'Set to goto Slot 6
-    GOTO RunSlot                   'go to McMek command interperature ----
-
+EntryOfSlot:
+  #IF SaySlot = 1 #THEN
+  DEBUG ">S7-V",DEC TempReg1,CR
+  #ENDIF
+  BRANCH TempReg1,[systeminit,             '0 systems init
+  HeartBeat,                               '1 Now Heartbeat of system
+  HeartBeatfromtext,                       '2 Heartbeat from text update
+  takeanddownload,                         '3 Take photo and send to terminal (TEST)
+  HeartBeatfromStore,                      '4 from store photo routine
+  DownLoadfile]                            '5 Transfer file from McMek to MicroLab
 '
-'********************************************************
-'  Take a Photo Proceedure, Place the return index vector number
-'  in TempReg0 so when photo is finish the program knows where
-'  to return back to...
-'********************************************************
+ReturnBack:
+  GET   VectorFromNum,TempReg1     'Returning vector for calling program
+  GET   VectorFromSlot,TempReg0    'fetch the program slot where the routine was called
+  RUN TempReg0                     'RETURNback now....!!!!
 '
-TakePhoto:
-  TempReg0 = 2    'Index to vector to return in this slot TakePhotoReturn
-  TempReg1 = 1    'program to run in slot 6
-  TempReg3 = 6    'Take photo slot 6 program 1 vector 1
-  GOTO RunSlot    'Execute a slot goto proceedure now doit
-'********************************************************
-'  Take a Photo Proceedure, Place the return index vector number
-'  in TempReg0 so when photo is finish the program knows where
-'  to return back to...
-'********************************************************
 '
-BeforeTakePhoto:
-  TempReg0 = 5    'Index to vector to return in this slot TakePhotoReturn
-  TempReg1 = 2    'program to run in slot 6
-  TempReg3 = 6    'Take photo slot 6 program 1 vector 1
-  GOTO RunSlot    'Execute a slot goto proceedure now doit
-'
-''
-'********************************************************
-'  Heart Beat Proceedure, Place the return index vector number
-'  in TempReg0 so when Heart Beat is finished the program knows
-'  where to return.  Heart Beat, updats time,A2D, watchdog, plus
-'  other maintance functions.
-'********************************************************
-'
-HeartBeat11:                       'set up for return vector 11
-    TempReg0 = 11                  'set to return vector 11
-    GOTO HeartBeat                 'enter vector setup
-HeartBeat12:                       'set up for return vector 12
-    TempReg0 = 12                  'set to return vector 12
-    GOTO HeartBeat                 'enter vector setup
-HeartBeat3:
-  TempReg0 = 3    'Index to vector to return in this slot HeartBeat3Return
 HeartBeat:
-  TempReg1 = 1    'program to run in slot 1
-  TempReg3 = 7    'Heart Beat slot 7 program 1 vector 1
-  GOTO RunSlot    'Execute a slot goto proceedure now doit
-'
+      GOSUB  HeartBeatUpdate     'HeartBeat, update data samples and time
+      GOTO ReturnBack            'back to calling routine
+HeartBeatfromStore:
+      GOSUB  HeartBeatUpdate    'HeartBeat1, from photostore routine
+      TempReg1=3                 '3 forced back to store photo routine
+      RUN 6
+HeartBeatfromtext:               'forced outside system
+      GOSUB HeartBeatUpdate      'forced outside system
+      TempReg1=0                 'forced outside system
+      RUN 4                      'forced outside system
+'==========================================================================
 
-'********************************************************
-  '
-  '
-'  #IF FlyConfig = 0 #THEN    '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-  '
-'#################################################################################
-'     Here to start Simulation or the flight Progrem
-'#################################################################################
+'********************************************************************************
+'---------- ISS System Init at startup and all resets --------------------------
+'********************************************************************************
+'-------------------- SLOT ROUTINE 0  ----------------------
 '
-'*********************************************************************
-'*********************************************************************
-'*********      Start This Slots Program Here   **********************
-'********* Here with the "s" or FlyConfig = 0   **********************
-'*********************************************************************
-'*********************************************************************
+'---------  Setup I/O pins and conditions 1st --------------
 '
-'ProgramStart:
- ' DEBUG CR,CR,"Simulation Start!",CR  'display no program here yet
-'  DEBUG "Flight Mode",CR
+systeminit:
+  INPUT   internalscl 'Set internal SLC buss high
+  INPUT   internalsda 'Set internal SDA buss high
+  I2COUT InternI2c, PCF8574address, [$FF] 'Set Output of 8574 for input all High
+  LOW     cameraclk   'Set camera clock to logic low
+  OUTPUT  cameraclk   'Set camera clock to output
+  INPUT   cameramiso  'Set camera miso to receive from camera
+  LOW     cameramosi  'Set camera mosi to logic high
+  OUTPUT  cameramosi  'Set camera mosi to send data to camera
+  INPUT   camerahold  'Set to look at camera hold
+  INPUT   masterin    'Set to get serial input from master
+  HIGH    masterout   'Set idle output to logic high
+  OUTPUT  masterout   'Set for serial output to master
+  INPUT   payloadsda  'Set payload SDA buss to high
+  INPUT   payloadscl  'Set payload SCL buss to high
+  INPUT   internawin  'Set to get internal slave serial data
+  HIGH    internawout 'Set internal slave serial line to high
+  OUTPUT  internawout 'Set to output serial data to interal slave
+  LOW    camerapower 'Set camera to on by logic high
+  OUTPUT  camerapower 'Set camera power to output the high
+  LOW     votedead    'Set to master is alive
+  OUTPUT  votedead    'Set to output alive signal
+  INPUT   payloadio14 'Set to input no drive to expansion board
+  HIGH    cameraCS    'DeSelect camera
+  OUTPUT  cameraCS    'Camera Select pin
   '
-'  #ENDIF
-  '
-'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-'=================================================================================
-'=========  FLIGHT CONDITION PROGRAM START MAIN LOOP =============================
-'=================================================================================
-'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+'  PUT    CameraRes,Camera640        'set degault to 640
+  PUT     CameraRes,Camera320        'set default to 320
+'  PUT    CameraQua,CameraBetter     'set default to Better
+  PUT     CameraQua,CameraNormal     'set default to Normal
+  PUT     TextPointer,$C000           'Text start
 '
-FlightStart:
+  PUT   MLabStatus,$20                'Default none zero status response
+'
+  '-------- Setup other conditions here  ------
+'
+'------ How many resets occured after program clean program load --------------
+'
+  STORE DataStorage                   'Set to read/write in slot 6
+  READ  ResetNumber,TempReg0          'get reset count from EEPRO
+'
+        #IF testreset #THEN
+        DEBUG "address = ",HEX4 ResetNumber,">",HEX TempReg0,CR
+        #ENDIF
+'
+  TempReg0 = TempReg0+1                 'count this reset now
+  WRITE ResetNumber,TempReg0            'save it for next time
+'
+        #IF testreset #THEN
+        DEBUG "Reset count = ",HEX2 TempReg0,CR
+        #ENDIF
+'
+'------- Now - At reset Move any Templets from EEPROM to Scratch pad Ram -----
+'
+'---------------------------------------
+'  Init default time in scratchpad memory
+'---------------------------------------
+    counter = RTCsec
+    FOR TempReg0 = 0 TO 5                   'set up to write default time in scratch pad
+    LOOKUP TempReg0,[1,1,1,1,1,12],TempReg1
+    PUT counter+TempReg0,TempReg1           'place default time in scratchpad
+    NEXT                                    'do it again until finished
     '
-    DEBUG CR,"MicroLab Bios Template Ver ",DEC3 version,CR
+    'Now send it to slave processer
     '
-'********************************
-'   Example Microlab program here
-'   simulation of program running
-'********************************
-'
-    #IF fastclock = 0     #THEN
-MoprClk0Val CON 635 '1st mission operations counter, times to chk masterin base, 1 sec calibration
-MoprClk1Val CON 30   'Heartbeat every 30 sec, seems ok
-MoprClk2Val CON 120  '120 = once per hour count, 120 30sec counts, 240 = every 2 hours
-    #ENDIF
-    #IF fastclock = 1 #THEN
-MoprClk0Val CON 110  '105 1st mission operations counter, times to chk masterin base
-MoprClk1Val CON 30  'Heartbeat every 30 sec, seems ok
-MoprClk2Val CON 30   '10 times speed
-    #ENDIF
-    #IF fastclock = 2 #THEN
-MoprClk0Val CON 100 ' "720"1st mission operations counter, times to chk masterin base
-MoprClk1Val CON 60  ' Heartbeat every 30 sec, seems ok
-MoprClk2Val CON 2 '10 mintime to do chamber operations
-    #ENDIF
-MoprMinVal  CON 2  'Count 2 HeartBeats - used for counting minutes
-'
-'
-Flight:
-        Tempword = MoprClk0Val              ' set init value of mission operations clock 0
-        PUT MoprClk0,Word Tempword
-        Tempword = MoprClk1Val              ' set init value of mission operations clock 1
-        PUT MoprClk1,Word Tempword
-        Tempword = MoprClk2Val              ' set init value of mission operations clock 2
-        PUT MoprClk2,Word Tempword
-        UserVar4 = MoprMinVal               ' set init value of Min time out counter
-'
-Flight1:
-        '
-        '------  Simulate an uploaded file   -----
-        '
-        SERIN 16,Baud9600T,1,noinput,[TempReg2] 'To abort running Flight Program
-        RUN 0
- noinput:
-        '
-        '------  End of simulated upload file testing ----
-        '
-ExampleCount0:
-         GET MoprClk0,Word TempWord                'get mission operations clock 0
-         TempWord = TempWord -1                    'decrese count of register
-         PUT MoprClk0,Word TempWord                'replace the counter in scratchpad
-         IF TempWord <> 0 THEN GOTO ExampleCount1  'if 0 fall through
-         '
-         ' Program main loop here
-         '
-         '****************************************************
-         '*** Test to Abort Running the Example Flight Program
-         SERIN 16,Baud9600T,1,noabort,[TempReg2]
-         GOTO Loop1
-noabort:
-         '****************************************************
-         '
-         DEBUG "m"                         '"m" output appx every sec at normal clk rate
-         TempWord = MoprClk0Val            'Get value to reinit mission operations clock 0
-         PUT MoprClk0,Word TempWord        'Reinit mission operations clock 0
-         '
-         GET MoprClk1,Word TempWord        'get mission operations clock 1
-         TempWord = TempWord-1             'dec the count to Heart Beat
-         PUT MoprClk1,TempWord            'replace it in scratchpad
-         IF TempWord <> 0 THEN GOTO ExampleCount1 'not time for Heart Beat yet
-         '
-         '  Fall through approx every 30 sec normal clock rate for heartbeat
-         '
-
-         DEBUG " H"                        ' Output Heartbeat Time stamp and number
-         FOR tempword = DurDay TO DurMin
-           READ tempword,tempword1
-           DEBUG ":",DEC2 tempword1
-         NEXT
-         DEBUG "-",DEC 3-UserVar4,"  ",CR  ' Heartbeat format H:Day:Hr:Mn-hb#
-
-         '
-         TempWord = MoprClk1Val            'Reinit loop mission operations clock 1
-         PUT MoprClk1,TempWord             'put it in scratchpad memory
-         '
-         'HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
-         GOTO HeartBeat3     'Heart Beat to keep alive the system and to update
-HeartBeat3Return:
-         'HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
-          GET RTCsec,TempReg0:DEBUG CR, "RTC sec: ", DEC TempReg0,CR 'get rtc clock for reference of drift
-          GET MoprClk1,tempreg1:tempreg1=60-tempreg1:DEBUG "MoprSec: ",DEC tempreg1,CR,CR
-
-         'UserVar[0,1,2,3] are used in slot 2.
-
-         'Count Heartbeats (30s intervals)
-         UserVar4=UserVar4-1    'decrement HeartBeat Count
-         IF UserVar4 <> 0 THEN GOTO EventTable 'Check event table every heartbeat
-         UserVar4 = MoprMinVal                 'Reset HeartBeat counter
-
-         'Count minutes
-         STORE 0
-         READ DurMin,TempWord : TempWord=TempWord+1 : WRITE DurMin,TempWord
-         IF TempWord < 60 THEN GOTO EventTable
-         WRITE DurMin,0                         'Reset DurMin Count to 0
-         'count hours
-         READ DurHour,TempWord : TempWord=TempWord+1 : WRITE DurHour,TempWord
-         IF TempWord < 24 THEN GOTO EventTable
-         WRITE DurHour,0
-         'count days
-         READ DurDay,TempWord : TempWord=TempWord+1 : WRITE DurDay,TempWord
-         'fall into event table
-
-
-
-
-
-EventTable:
-
-         STORE 4
-         PUT VectorFromNum,4    'C 2:0
-         PUT vectorFromSlot,0   'R 4:0
-         tempReg1=0 'go to event table in slot 2
-         RUN 2
-EventTableReturn:
-         'DEBUG CR,"slot 0 received event byte: ",DEC UserVar3,CR  (not used in Slot 0)
-         STORE DataStorage 'return datastorage to s4
-
-
-
-  '*********************************************************************
-  '  Main Check for masterin = 0, check every operational loop count down
-  '*********************************************************************
+reXferTime:
+    SEROUT internawout,Baud2400T,[$5A]          'send SetTime command
+    SERIN internawin,Baud2400T,10000,NoSlave,[TempReg0]
+    PUT SlaveErr,TempReg0
     '
-ExampleCount1:                              'Check to see if Master needs attention or requesting action
-      #IF MasterEnabled = 1 #THEN           'only enabled with assy
-      IF masterin <> 0 THEN GOTO nomek2     'not zero don't do it
-      IF masterin = 0 THEN GOTO McMekAttn1  'yes is zero, do it  needs attention
-nomek2:
-      #ELSE
-      IF masterin = 1 THEN GOTO McMekAttn1Return  'for balanced time loop
-      #ENDIF
-McMekAttn1Return:                                 'program will return here after processing
-         'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM         '
-        '
-        GOTO Flight1                         'short loop
-        '
-        '
-'********************************************
-'  End of  MicroLab program is here
-'********************************************
-        '
-TagCnt   DATA 00
-DurMin   DATA 00
-DurHour  DATA 00
-DurDay   DATA 00
+    FOR TempWord = RTCsec TO RTCyear   '
+    PAUSE 10
+    GET TempWord,TempReg0                        'get time from scratchpad
+    SEROUT internawout,Baud2400T,[TempReg0]      'send to set time
+    NEXT
+    '
+    STORE DataStorage
+    FOR TempWord = Missionsec TO Missionday '1228 set power on that was stored in stamp
+    PAUSE 10
+    READ TempWord,TempReg0                  'get the value from memory
+    SEROUT internawout,Baud2400T,[TempReg0] 'send it to the slave
+    NEXT
+    GOTO TimeXferDone
+NoSlave:                                         'slave did not respond to request to send data
+   HIGH internawout                              'reset send
+   DEBUG "time init error no slave",CR
+   GOTO  reXferTime
+   '
+TimeXferDone:
+
+'----------  All done with systems continue with power on routines -------------
+'
+'PAYLOAD ROUTINES HERE$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+'$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+'$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+'$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+'
+  GOTO ReturnBack                           'go back to where came
+'
+'
+'-----------------------------------------------------------
+'  DownLoad a file from McMek(master) to the MicroLab
+'  In Bank 3 address 0000 for 2048 bytes
+'Note special issues with download....
+'  it takes 4 millisec to write a location, therefore data incoming
+'must be slower than 4 millisec.
+'  Handshake:
+'     for each byte downloaded an Act is sent back to the master
+'   this controls the flow of data from the master to the microlab
+'   When 2048 bytes are downloaded,  the ExComplete flag is set
+'   in the status register.  the indicate to the microlab user program
+'   that a new data file has been downloaded from the master,  the flag
+'   is cleared when the file is executed.
+'
+'-----------------------------------------------------------
+'
+DownLoadfile:
+    TempReg2 = EBank3              'point to bank 3 for down load file
+    FOR xcounter= 0 TO 2047        'Set counter and pointer to download area
+    SERIN masterin ,Baud9600T,60000,Errorback,[TempReg0]  'Wait for request/command from McMek,wait 20 sec for response
+    I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [TempReg0]
+    PAUSE 10                        'must wait for eeram write to finish
+'''''''''''''''''''''''''''''''''''''''    xcounter=xcounter+1            'point to next location in the ee2ram
+    SEROUT masterout,Baud9600T,Pace,[Ack] 'send Ack, to indicate finished writing in ee2ram
+    NEXT
+    '
+    GET MLabStatus,TempReg0        'get status byte
+    TempReg0 = TempReg0 | ExComplete 'set the upload file flag, file is ready to be used
+    PUT MLabStatus,TempReg0        'replace the status byte for further use
+    '
+    'Set the state of the Magnetic Chamber file execution system
+    ' to state 2 to process the uploaded file
+    '
+    STORE DataStorage         'set to data storage bank
+    READ Cstatus,TempReg0     'what is the state and status
+    TempReg0=TempReg0 & $F0   'remove the lower nibble of state condition
+    TempReg0=TempReg0 | $02   'set state to 2, process uploaded chamber file
+    WRITE Cstatus,TempReg0    'replace status register in e2memory
+    '
+    ' Reset TestNumber to 0, this is the pointer that will be used to get the data from the
+    '  downloaded file
+    '
+    WRITE TestNumber,Word $0000  'over ride operations, clear the pointer to do file from beginning
+    '
+    ' File has been downloaded to MicroLab, MLabStatus Byte updated with bit set
+    ' Cstatus state forced to change to 2, to process downloaded file
+    '
+    GOTO ReturnBack                'finished download
+Errorback:
+    SEROUT masterout,Baud9600T,pace,[$ff]  'Error response to master
+    GOTO ReturnBack                        'back to flow of things
+'
+
+'
+'
+'********************************************************************
+'************   Set Camera and Take a Photo Here   ******************
+'********************************************************************
+'
+'TakeandStore:
+'    GOSUB takepicture            'take the photo
+'    GOTO storephoto             'store the photo
+'
+TakeandDownload:
+  #IF Notakeanddownload #THEN
+      GOTO ReturnBack
+  #ELSE
+    GOSUB takepicture            'take the photo
+    GOTO downloadphoto          'send photo out terminial
+'
+takepicture:
+  '
+'  I2CIN InternI2c, PCF8574address, [TempReg0]         'Get to whole byte
+'  TempReg0=TempReg0 | Fbacklight                     'set bit high
+'  I2COUT InternI2c, PCF8574address, [TempReg0]        'output high led on
+
+  LOW camerapower               'turn camera power off if on in error recovery
+  PAUSE 500                     '1/2 sec
+  '
+  #IF Sayit = 1 #THEN
+  DEBUG CR,"Taking photo",CR      'Say what is happening
+  #ENDIF
+  '
+  HIGH cameraCS               'set camera chip select to high
+  HIGH  camerapower           'set camera power on
+  '
+  #IF Sayit = 1 #THEN
+  DEBUG "camera on",CR
+  #ENDIF
+  '
+  PAUSE 1500                  'wait 1.5 sec for camera to init itself
+  '
+  '
+  PULSOUT votedead ,1 '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+  '
+    FOR tempreg1 = 0 TO 150                                 'check 150 times for sync before giving up
+    LOW cameraCS                                            'enable camera chip select
+    FOR xcounter = 0 TO 7                                   'set to send string of 7 commands
+    LOOKUP xcounter,[$ff,$ff,$ff,$0d,$00,$00,$00,$00],sdata 'set for command to send
+    GOSUB manualbytespi                                     'send the byte, while looking at input
+    IF counter=0 THEN DEBUG CR,"hold 7",CR:GOTO takepicture
+    text(xcounter) = TempReg3                               'place input into array for later
+    NEXT                                                    'send next byte not finished
+    IF (text(2) = $FF) & (text(3) = $0E) & (text(4) = $0D) THEN GOTO SyncCamera2  'yes received ack from camera
+    HIGH cameraCS                                           'did not receive ack, set chip select to high
+    NEXT                                                    'do it again
+    tempreg0 = 1                                            'sync Timed out Error, set code
+    GOTO cameraerror                                        '
+SyncCamera2:                                                'now need to wait for sync from camera
+   LOW cameraCS
+    SHIFTOUT cameramosi, cameraclk, MSBFIRST, [$FF]            ' send the bits Quick dummy
+    SHIFTOUT cameramosi, cameraclk, MSBFIRST, [$FF]            ' send the bits
+    SHIFTOUT cameramosi, cameraclk, MSBFIRST, [$FF]            ' send the bits
+    SHIFTOUT cameramosi, cameraclk, MSBFIRST, [$0D]            ' send the bits
+    SHIFTOUT cameramosi, cameraclk, MSBFIRST, [$00]            ' send the bits
+    SHIFTOUT cameramosi, cameraclk, MSBFIRST, [$00]            ' send the bits
+    SHIFTOUT cameramosi, cameraclk, MSBFIRST, [$00]            ' send the bits
+    SHIFTOUT cameramosi, cameraclk, MSBFIRST, [$00]            ' send the bits
+    HIGH cameraCS                                              'deselect camera
+    FOR xcounter = 0 TO 7                                      'set to send 0 bytes of command
+    LOOKUP xcounter,[$ff,$ff,$ff,$0d,$00,$00,$00,$00],sdata    'command
+    LOW cameraCS                                               'enable camera chip select
+    GOSUB manualbytespi                                        'send the byte while looking at input
+    IF counter=0 THEN DEBUG CR,"hold 6",CR:GOTO takepicture
+    text(xcounter) = TempReg3                                  'place received data in text array
+    NEXT                                                       'ready to send next byte
+    HIGH cameraCS                                              'deselect camera select
+'  DEBUG CR '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    IF (text(2) = $FF) & (text(3) = $0D) THEN GOTO SyncCamera3 'check for sync from camera
+    tempreg0 = 2                                               'set camera error code
+    GOTO cameraerror                                           'goto error processing
+SyncCamera3:                                                   'now need to ack the sync from camera
+    FOR xcounter = 0 TO 7                                      'set to send ack 8 bytes
+    LOOKUP xcounter,[$ff,$ff,$ff,$0e,$0d,$00,$00,$00],sdata    'get each byte of command
+    LOW cameraCS                                               'enable camera chip select
+    GOSUB manualbytespi                                        'send the byte to the camera
+    IF counter=0 THEN DEBUG CR,"hold 5",CR:GOTO takepicture
+    text(xcounter) = TempReg3                                  'place the received data in text array
+    NEXT                                                       'send next byte
+    HIGH cameraCS                                              'disable camera select, now synced
+' DEBUG CR '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    '
+    ' Camera now Synced and waiting for instructions
+    ' need to init camera
+    ' INIT CAMERA
+    '
+    GET CameraRes,TempReg2                                     'Get current resoluation
+    FOR tempreg1 = 0 TO 150                                   'we will try 150 times
+    LOW cameraCS                                              'select camera
+    FOR xcounter = 0 TO 7                                     'set to send 8 bytes
+    LOOKUP xcounter,[$ff,$ff,$ff,$01,$00,$87,$01,TempReg2],sdata   'set init command
+    GOSUB manualbytespi                                       'send it while looking at input
+    IF counter=0 THEN DEBUG CR,"hold 4",CR:GOTO takepicture
+    text(xcounter) = TempReg3                                 'place received data in text array
+    NEXT                                                      'get and send the next byte
+    HIGH cameraCS                                             'deselect the camera
+'      DEBUG CR '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    IF (text(2) = $FF) & (text(3) = $0E) & (text(4) = $01) THEN GOTO SelectQuality
+    NEXT
+    TempReg0=3                                                  'no init error 3
+    GOTO cameraerror
+    '
+    ' init ok, now select quality
+    '
+SelectQuality:
+    GET CameraQua,TempReg2                                      'get current quality
+    FOR tempreg1 = 0 TO 150                                    'we will try 150 times
+    LOW cameraCS                                               'select camera
+    FOR xcounter = 0 TO 7                                      'set to send 8 bytes
+    LOOKUP xcounter,[$ff,$ff,$ff,$10,TempReg2,$00,$00,$00],sdata    'set quality command
+    GOSUB manualbytespi                                        'send while getting input
+    IF counter=0 THEN DEBUG CR,"hold 3",CR:GOTO takepicture
+    text(xcounter) = TempReg3                                  'place input in text array
+    NEXT                                                       'get the next one
+    HIGH cameraCS                                              'deselect camera
+'      DEBUG CR '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    IF (text(2) = $FF) & (text(3) = $0E) & (text(4) = $10) THEN GOTO GetPicture
+    NEXT
+    tempreg0 = 4
+    GOTO cameraerror
+    '
+    'Set the quality properly
+    '
+GetPicture:
+    FOR tempreg1 = 0 TO 150                                    'again 150 times
+'    PAUSE 5 '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    LOW cameraCS                                               'enable camera
+'    PAUSE 5 '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    FOR xcounter = 0 TO 7                                      'set to send 8 bytes
+    LOOKUP xcounter,[$ff,$ff,$ff,$04,$05,$00,$00,$00],sdata    'get picture command                                                               '
+    GOSUB manualbytespi                                        'send and receive
+    IF counter=0 THEN DEBUG CR,"hold 2",CR:PUT CameraQua,CameraBetter:GOTO Takepicture
+    text(xcounter) = TempReg3                                  'place in array
+    NEXT
+'       DEBUG CR '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$                                                      'send and receive next one
+    HIGH cameraCS                                              'deselect camera
+    IF (text(2) = $FF) & (text(3) = $0E) & (text(4) = $04) THEN readydownload
+    NEXT
+    tempreg0 = 5
+    GOTO cameraerror
+    '
+    '
+readydownload:
+    LOW cameraCS                                               'endable camera
+    FOR xcounter = 0 TO 7                                      'set for 8 bytes
+    LOOKUP xcounter,[$ff,$ff,$ff,$04,$05,$00,$00,$00],sdata    'Download command
+    GOSUB manualbytespi                                        'send it and read input
+    IF counter=0 THEN DEBUG CR,"hold 1",CR:GOTO takepicture
+    text(xcounter) = TempReg3                                  'place received data in text array
+    NEXT                                                       'get next byte
+'      DEBUG CR '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    HIGH cameraCS                                              'disable camera select
+    TempWord = text(5) + (text(6)*256) + (text(7)*256*256)     'Array has sixe of photo
+    '
+    'Photo length is in TempWord and camera is set to download the photo
+    'Now what to do with the data
+    '
+'    I2CIN InternI2c, PCF8574address, [TempReg0]         'Get to whole byte
+'    TempReg0=TempReg0 & ~Fbacklight                     'set bit low
+'    I2COUT InternI2c, PCF8574address, [TempReg0]        'output low led off
+    '
+    DEBUG "Pic Size: ", DEC TempWord,"  ",HEX4 TempWord,CR     'output size of photo to terminal
+    '
+    RETURN
+    '
+    '
+    '
+    'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    'Here we output the photo data to the terminal output of the stamp
+    'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    '
+downloadphoto:
+    '
+    DO WHILE (TempWord) > 0
+    LOW cameraCS                                     'enable camera
+    SHIFTIN cameramiso, cameraclk, LSBFIRST,  [text] 'get the data from the camera
+    DEBUG HEX2 text                                  'send it out in Hex fromat
+'    SEROUT masterout,Baud9600T,1,[HEX2 text]  '?????????????????????????????????????????
+    HIGH cameraCS                                    'deselect the camera to cycle it
+    TempWord = TempWord - 1                          'Count the data sent
+    LOOP                                             'Loop to finish sending
+    LOW camerapower                                  'Finished with camrea, Turn camera off
+Photofinish:
+    DEBUG CR,"Done",CR
+    GOTO ReturnBack                          'return to calling slot and routine
+
+cameraerror:
+   DEBUG "CameraError= ",HEX2 TempReg0,CR
+   '
+   ' Process error recovery here
+   '
+   GOTO ReturnBack
+   '
+'***************************************************************************
+'***************************************************************************
+' Entry -> sdata = byte to send
+' Exit <-  TempReg3 = byte received
+'
+manualbytespi:
+  TempReg3 = 0        'returned byte starts all "0"s
+  TempReg0 = $80      'set for bit testing and seting start with msb
+  '
+  ' for hold timeout
+  '
+  counter = $ff
+  '
+back2:
+  IF counter = 0 THEN DEBUG CR,"hold timed out", CR:RETURN  'hold time out if more than 255 time error
+  counter = counter - 1     'dec timeout loop
+  IF IN5 = 1 THEN GOTO back2                                           'Wait for camera not busy
+  FOR counter = 1 TO 8                                                 'Set for 8 bit shift
+  IF sdata & TempReg0 = 0 THEN LOW cameramosi ELSE HIGH cameramosi     'set bit to low
+  HIGH cameraclk                                                       'set camera clock to high
+  IF IN3 = 1 THEN TempReg3 = TempReg0 | TempReg3                       'set input to high read a one
+  TempReg0 = TempReg0 >> 1                                             'shift for next bit
+  LOW cameraclk                                                        'clock to low
+  NEXT
+  RETURN
+'
+     #ENDIF
+    '
+'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    '                HEARTBEAT OF THE SYSTEM
+    '  This is the Heartbeat to the slave processor
+    '       MUST BE EXECUTED APPROX ONCE EVERY 10 SEC OR FASTER OR
+    '       THE SYSTEM WILL BE RESET DUE TO NON ATTENTION !!!!!
+    '  NOTE: Program called from other slots to vector 0 in this slot will
+    '        do a normal slot program return with the information provided
+    '        during the vector goto to this slot...
+    ' Uses - TempReg0,TempReg2,counter,
+'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+HeartBeatUpdate:
+    PUT Reg0low,TempReg0   'Save FOR return
+    PUT Reg0high,TempReg2  'Save for return
+    PUT Reg1low,counter    'Save for return
+    '
+    SEROUT internawout,Baud2400T,[$01]     'send request to Slave to give us an update
+    SERIN internawin,Baud2400T,10000,NoSlave,[TempReg0] 'get input from slave, timeout NoSlave
+    PUT SlaveErr,TempReg0
+    '
+    TempReg2 = AmbTemperature  'point TempReg2 at low byte of AmbTemperature
+    FOR TempReg2 = AmbTemperature TO AmbTemperature+15
+    SERIN internawin,Baud2400T,10000,NoSlave,[TempReg0] 'get the byte from the input
+    HIGH internawout                                    'reset request data flag
+    PUT TempReg2,TempReg0                               'put value into scratchpad ram
+    NEXT
+    '
+    PAUSE 5               '5 millisec so slave and stamp resync if necessary
+    '
+'*****************************************************
+'   Get time from slave
+'*****************************************************
+'
+    SEROUT internawout,Baud2400T,[$03]                   'send gettime Command to Slave
+    SERIN internawin,Baud2400T,10000,NoSlave,[TempReg0]  'wait for input with time out
+    PUT SlaveErr,TempReg0
+    '
+    FOR counter = 0 TO 5    ' to get six bytes from the slave Time
+    SERIN internawin,Baud2400T,10000,NoSlave,[TempReg0] 'get the byte from the input
+    PUT RTCsec+counter,TempReg0     'Place the time byte in scratchpad for access
+    NEXT                            'get the next one
+    '
+    SERIN internawin,Baud2400T,10000,NoSlave,[TempReg0] '1228 poweron sec
+    PUT sMissionsec,TempReg0
+    SERIN internawin,Baud2400T,10000,NoSlave,[TempReg0] '1228 poweron sec
+    PUT sMissionmin,TempReg0
+    SERIN internawin,Baud2400T,10000,NoSlave,[TempReg0] '1228 poweron sec
+    PUT sMissionhour,TempReg0
+    SERIN internawin,Baud2400T,10000,NoSlave,[TempReg0] '1228 poweron sec
+    PUT sMissionday,TempReg0
+    '
+    STORE DataStorage
+    GET sMissionday,TempReg0                            '1228
+    WRITE Missionday,TempReg0                           '1228
+     DEBUG DEC TempReg0,"D "
+    PAUSE 5
+    GET sMissionhour,TempReg0                            '1228
+    WRITE Missionhour,TempReg0                           '1228
+     DEBUG DEC TempReg0,"H "
+    PAUSE 5
+    GET sMissionmin,TempReg0                            '1228
+    WRITE Missionmin,TempReg0                           '1228
+     DEBUG DEC TempReg0,"M "
+    PAUSE 5
+    GET sMissionsec,TempReg0                            '1228
+    WRITE Missionsec,TempReg0                           '1228
+     DEBUG DEC TempReg0,"S",CR
+    PAUSE 5
+    HIGH internawout                'reset request data flag
+    GET Reg0low,TempReg0            'restore FOR return
+    GET Reg0high,TempReg2           'restore for return
+    GET Reg1low,counter             'restore for return
+
+    RETURN
+    '
+    '
+NoSlave1:               'slave did not respond to request to send data
+   DEBUG CR,"*E1*",CR    'Slave Timeout
+   HIGH internawout    'reset send
+   RETURN
+   '
