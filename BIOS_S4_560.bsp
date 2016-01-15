@@ -1,6 +1,6 @@
 ' {$STAMP BS2p}
 ' {$PBASIC 2.5}
-' {$PORT COM1}
+' {$PORT COM9}
 '**************************************************
 '
 '  Program Slot 4 = program
