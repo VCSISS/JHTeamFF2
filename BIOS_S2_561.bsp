@@ -1,6 +1,6 @@
 ' {$STAMP BS2p}
 ' {$PBASIC 2.5}
-' {$PORT COM1}
+' {$PORT COM9}
 '**************************************************
 '
 '  Program Slot 2 = Event Table and Event programs
@@ -108,7 +108,7 @@ CameraRes       CON  VCCby2high+1     'Name this Bios Register (camera Resolutio
 CameraQua       CON  CameraRes+1      'Name this Bios Register (Camera quality $02 normal, $01 Better, $00 Best)
 SlaveErr        CON  CameraQua+1      'slave MSP430 status byte (Local Slave Status)
 ActiveBank      CON  SlaveErr+1       'Name this Bios Register (Active bank)
-TextPointer     CON ActiveBank+1      'Name 16 bit pointer to text in active bank
+TextPointer     CON ActiveBank+1      'Name 16 bit pointer to text in active bank    110
 '
 'MicroLab Bios Status Byte given to Master on Status Request
 '  Location and Bits defined
@@ -307,7 +307,7 @@ SysCPUcal    CON   $C002    'External E2RAM calibration locations
   DEBUG ">S2-V",DEC TempReg1,CR
   #ENDIF
   BRANCH TempReg1,[EventTable,         '0 Event Table
-  TakePhotoReturn,                     '1 vector to this program
+  TakePhotoReturnS,                     '1 vector to this program
   P2vector,                            '2 vector to this program
   P3vector]                            '3 vector to this program
   '
@@ -407,21 +407,30 @@ FoundEvent:
   DEBUG CR,"End of Table",CR
 
   STORE DataStorage
-  BRANCH UserVar3,[Event0,    'Event 0 (do nothing)
-  Event1,                     'Event 1 (
-  event2,                     'Event 2 (
-  event3,                     'Event 3 (
-  Event4]                     'Event 4 (
+  BRANCH UserVar3,[ Event1,
+'  Event0,    'Event 0 (do nothing)
+                      'Event 1 (
+  Event2,                    'Event 2 (
+  Event3,                     'Event 3 (
+  Event4,
+  Event5,
+  Event6,
+  Event7,
+  Event8]                     'Event 4 (
 
   UserVar3 = 0                 'Error
   DEBUG CR,"Event Byte is out of range",CR
   GOTO ReturnBack              'back to calling routine
 
-Event0: DEBUG CR,"REB0",CR
-        tempReg0 = 4 'Destination Index (EventTableReturn)
-        RUN 0        'Destination Slot
+'Event0: DEBUG CR,"REB0.The quick brown fox jumps over the lazy dog",CR
+'        tempReg0 = 4 'Destination Index (EventTableReturn)
+'        RUN 0        'Destination Slot
 
-Event1: DEBUG CR,"REB1: TakePhoto",CR
+Event1: DEBUG CR,"REB1: TakePhoto. ",CR
+
+
+          LOW 4 'May change pin #
+
          HIGH 14    'Turns on the LED's
          '
          '   Take a High Resoluation Photo of the Chamber
@@ -443,6 +452,10 @@ TakePhotoReturn:
          RUN 0        'Destination Slot
 
 Event2: DEBUG CR,"REB2:RD Analg" ,CR
+
+
+          LOW 4
+
         'This event will append the analog read of 16 channels to the end of the Event Table. It is dumped automatically.
 
         'ADC internal register defintions. Scope limited to this slot only.
@@ -453,7 +466,7 @@ Event2: DEBUG CR,"REB2:RD Analg" ,CR
                  'ConfigReg = $01  Start
                  'ConfigReg = $80 Initialize
         BStsReg    CON $0C    'Busy Status Reg
-                 'BStsReg.0 => Conversion in Progress
+                   'BStsReg.0 => Conversion in Progress
                  'BStsReb.1 => POR in Progress
         ADC_Cnv    CON $07     'Conversion Register. Program only in shutdown
                  'ADC_Cnv = $00 :: low power conversion  (convert all channels then go into shutdown. ~730ms to complete)
@@ -481,6 +494,7 @@ Event2: DEBUG CR,"REB2:RD Analg" ,CR
               NEXT
               DEBUG CR,"Init fail",CR
               WRITE (UserVar3+(UserVar2*10)),$55 'init failure
+              DEBUG "All Good"
               GOTO NextADC
 set_mode:
               I2COUT payloadsda,UserVar1,ADC_ACR,[$02]   'Mode 1, use internal Vref
@@ -493,6 +507,7 @@ set_mode:
               NEXT
               DEBUG CR,"Conversion fail",CR
               WRITE (UserVar3+1+(UserVar2*10)),$99 'Conversion failure
+              DEBUG "Conversion Failure Problem"
               GOTO NextADC
 channelRead:
               FOR tempreg0= 0 TO 7
@@ -500,6 +515,8 @@ channelRead:
                  DEBUG "sensor ",HEX tempreg0," records ",DEC tempreg1,CR
                  WRITE (UserVar3+(UserVar0*10)+2+tempreg0),tempreg1
               NEXT
+              DEBUG "Trying to Read Sensors"
+
               DEBUG "ADC ",DEC1 UserVar0," done",CR,CR
 NextADC:
            NEXT    'do next ADC
@@ -518,14 +535,60 @@ EB2_Exit:
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0        'Destination Slot
 
+        DEBUG "Reading Successful"
+                  LOW 1 'May change pin #
 
-Event3: DEBUG CR,"REB3: empty"  ,CR
-        tempReg0 = 4 'Destination Index (EventTableReturn)
-        RUN 0        'Destination Slot
+         HIGH 14    'Turns on the LED's
+         '
+         '   Take a High Resoluation Photo of the Chamber
+         'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+         PUT    CameraRes,Camera640        'Template default
+         PUT    CameraQua,CameraNormal     'set to Normal
 
-Event4: DEBUG CR,"REB4:Replay" ,CR
+         PUT VectorFromSlot,2 'Return Slot
+         PUT VectorFromNum,1  'Return Index
+         TempReg1 = 1    'Destination Index
+         TempReg3 = 6    'Destination Slot
+         RUN 6           'Execute a slot goto proceedure now doit
+TakePhotoReturnS:                                                         'LOOK AT THIS IS MIGHT BE AN ERROR
+         'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+         '
+         LOW 14     'Turns off the LED's
+         ' Values in return back are lost when jumping to Slot 6
+         tempReg0 = 4 'Destination Index (EventTableReturn)
+         RUN 0        'Destination Slot
+
+        HIGH 4
+
+
+'Event3: DEBUG CR,"REB3:++ Var and low res"  ,CR
+'
+'        STORE 2
+'        READ x,TempReg0
+'       TempReg0=TempReg0+1
+'        WRITE x, TempReg0
+'        STORE 4
+
+'        STORE 2
+'        READ y,TempReg0
+'        TempReg0=TempReg0+1
+'        WRITE y, TempReg0
+'        STORE 4
+
+'        STORE 2
+'        READ z,TempReg0
+'        TempReg0=TempReg0+1
+'        WRITE z, TempReg0
+'        STORE 4
+
+'         LOW 4
+
+'        tempReg0 = 4 'Destination Index (EventTableReturn)
+'        RUN 0        'Destination Slot
+
+Event3: DEBUG CR,"REB3:Replay" ,CR
         STORE 0
-        WRITE DurDay,0 : WRITE DurHour,0 : WRITE DurMin,0 'Reset Event Table State
+        WRITE DurDay,1 : WRITE DurHour,0 : WRITE DurMin,58 'Reset Event Table State
         STORE 2
           FOR TempReg0 = 1 TO 6
           WRITE ETable+(TempReg0*5)+3,$FF 'reset tag fields to allow a repeat cycle
@@ -535,11 +598,130 @@ Event4: DEBUG CR,"REB4:Replay" ,CR
         RUN 0        'Destination Slot
 
 
+Event4: DEBUG CR,"REB4:Heating Up"
+
+              'This event heats up the resistor
+
+          HIGH 4 'May need to change pin
+              tempReg0 = 4 'Destination Index (EventTableReturn)
+        RUN 0        'Destination Slot
+
+'Event6: DEBUG CR,"REB6:Cooling Down"
+
+              'This event cools down the resistor
+
+'          LOW 4 'May need to change pin
+
+Event5: DEBUG CR,"REB5: Replay10"
+
+            STORE 2
+            READ  RpCnt, TempReg1
+            IF TempReg1 <> 0 THEN
+                           TempReg1 = TempReg1-1
+                            WRITE RpCnt, TempReg1
+                           STORE 4
 
 
 
 
+                           STORE 0
+                           WRITE DurDay,1 : WRITE DurHour,0 : WRITE DurMin,58 'Reset Event Table State
+                           STORE 2
+                            FOR TempReg0 = 1 TO 6
+                            WRITE ETable+(TempReg0*5)+3,$FF 'reset tag fields to allow a repeat cycle
+                            NEXT
+                          STORE DataStorage
+                          tempReg0 = 4 'Destination Index (EventTableReturn)
+                          RUN 0        'Destination Slot
+            ENDIF
 
+             STORE 2
+               READ a,TempReg0
+               TempReg0=5
+               WRITE a, TempReg0
+               STORE 4
+
+               STORE 2
+               READ x,TempReg0
+               TempReg0=1
+               WRITE x, TempReg0
+               STORE 4
+
+               STORE 2
+               READ RpCnt,TempReg0
+               TempReg0= 9
+               WRITE RpCnt, TempReg0
+               STORE 4
+
+
+
+
+             STORE 0
+        WRITE DurDay,1 : WRITE DurHour,05 : WRITE DurMin,10'Reset Event Table State
+        STORE 2
+          FOR TempReg0 = 1 TO 6
+          WRITE ETable+(TempReg0*5)+3,$FF 'reset tag fields to allow a repeat cycle
+        NEXT
+        STORE DataStorage
+        STORE 4
+        tempReg0 = 4 'Destination Index (EventTableReturn)
+        RUN 0        'Destination Slot
+
+
+
+
+Event6: DEBUG CR,"REB6:Replay13" ,CR
+
+'        STORE 2
+'        READ x,TempReg0
+'       TempReg0=TempReg0-9
+'        WRITE x, TempReg0
+'        STORE 4
+
+             STORE 2
+               READ a,TempReg0
+               TempReg0=3
+               WRITE a, TempReg0
+               STORE 4
+
+
+        STORE 0
+        WRITE DurDay,0 : WRITE DurHour,22 : WRITE DurMin,30 'Reset Event Table State
+        STORE 2
+          FOR TempReg0 = 1 TO 6
+          WRITE ETable+(TempReg0*5)+3,$FF 'reset tag fields to allow a repeat cycle
+        NEXT
+        STORE DataStorage
+        tempReg0 = 4 'Destination Index (EventTableReturn)
+        RUN 0        'Destination Slot
+
+Event7: DEBUG CR,"REB7:+10x" ,CR
+
+ '       STORE 2
+ '       READ x,TempReg0
+       TempReg0=TempReg0+10
+        WRITE x, TempReg0
+        STORE 4
+
+
+
+        tempReg0 = 4 'Destination Index (EventTableReturn)
+        RUN 0        'Destination Slot
+
+Event8: DEBUG CR,"REB8:-19x & Lo res" ,CR
+
+        STORE 2
+        READ x,TempReg0
+       TempReg0=TempReg0-19
+        WRITE x, TempReg0
+        STORE 4
+
+        LOW 4
+
+
+
+        tempReg0 = 4 'Destination Index (EventTableReturn)
+        RUN 0        'Destination Slot
 
 
 
@@ -570,49 +752,44 @@ P3vector:
   GOTO ReturnBack      'back to calling routine
 
 
-
          '    Day  Hour  Min   Tag  EventByte
- ETable DATA  00,  00,   00,   $FF,     02   'Row 0
-        DATA  00,  00,   01,   $FF,     01   'Row 1
-        DATA  00,  00,   02,   $FF,     02   'Row 2
-        DATA  00,  00,   03,   $FF,     01   'Row 3
-        DATA  00,  00,   05,   $FF,     00   'Row 4
-        DATA  00,  00,   05,   $FF,     00   'Row 5
-        DATA  00,  00,   06,   $FF,     00   'Row 6
-        DATA  00,  01,   00,   $FF,     00   'Row 7
-        DATA  04,  00,   00,   $FF,     00   'Row 8
-        DATA  05,  00,   00,   $FF,     00   'Row 9
-        DATA  06,  00,   00,   $FF,     00   'Row 10
-        DATA  07,  00,   00,   $FF,     00   'Row 11
-        DATA  08,  00,   00,   $FF,     00   'Row 12
-        DATA  09,  00,   00,   $FF,     00   'Row 13
-        DATA  10,  00,   00,   $FF,     00   'Row 14
-        DATA  11,  00,   00,   $FF,     00   'Row 15
-        DATA  12,  00,   00,   $FF,     00   'Row 16
-        DATA  13,  00,   00,   $FF,     00   'Row 17
-        DATA  14,  00,   00,   $FF,     00   'Row 18
-        DATA  15,  00,   00,   $FF,     00   'Row 19
-        DATA  16,  00,   00,   $FF,     00   'Row 20
-        DATA  17,  00,   00,   $FF,     00   'Row 21
-        DATA  18,  00,   00,   $FF,     00   'Row 22
-        DATA  19,  00,   00,   $FF,     00   'Row 23
-        DATA  20,  00,   00,   $FF,     00   'Row 24
-        DATA  21,  00,   00,   $FF,     00   'Row 25
-        DATA  22,  00,   00,   $FF,     00   'Row 26
-        DATA  23,  00,   00,   $FF,     00   'Row 27
-        DATA  24,  00,   00,   $FF,     00   'Row 28
-        DATA  25,  00,   00,   $FF,     00   'Row 29
-        DATA  26,  00,   00,   $FF,     00   'Row 30
-        DATA  27,  00,   00,   $FF,     00   'Row 31
-        DATA  28,  00,   00,   $FF,     00   'Row 32
-        DATA  29,  00,   00,   $FF,     00   'Row 33
-        DATA  30,  00,   00,   $FF,     00   'Row 34
-        DATA  31,  00,   00,   $FF,     00   'Row 35
-        DATA  32,  00,   00,   $FF,     00   'Row 36
-        DATA  33,  00,   00,   $FF,     00   'Row 37
-        DATA  34,  00,   00,   $FF,     00   'Row 38
-        DATA  35,  00,   00,   $FF,     00   'Row 39
-        DATA  36,  00,   00,   $FF,     00   'Row 40
+ ETable DATA  00,  00,   01,   $FF,     00   'Row WE NEED TO CHANGE THIS, IF WE FORGET TO CHANGE THIS IT WILL SUCK
+        DATA  00,  23,   00,   $FF,     01   'Row 0
+        DATA  00,  23,   20,   $FF,     02   'Row 1
+      ' DATA  00,  23,   20,   $FF,     01
+        DATA  01,  01,   00,   $FF,     04   'Row 2
+        DATA  01,  01,    x,   $FF,     02   'Row 3
+        DATA  01,  01,   10,   $FF,     07   'Row 4
+        DATA  01,  01,    x,   $FF,     02   'Row 5
+        DATA  01,  01,   20,   $FF,     07   'Row 6
+        DATA  01,  01,    x,   $FF,     02   'Row 7
+        DATA  01,  01,   30,   $FF,     08   'Row 8
+    '   DATA  01,  01,   32,   $FF,     06
+        DATA  01,   a,   00,   $FF,     05   'Row 9
+        DATA  01,   a,   01,   $FF,     03   'Row 10
+        DATA  01,  05,   20,   $FF,     06   'Row 11
+        'DATA  01,  04,   00,   $FF,     05
+        'DATA  01,  04,    x,   $FF,     02
+        'DATA  01,  04,    y,   $FF,     02
+        'DATA  01,  04,    z,   $FF,     02
+        'DATA  01,  04,   31,   $FF,     03
+        'DATA  01,  04,   32,   $FF,     06
+        'DATA  01,  08,   00,   $FF,     09
+        'DATA  01,  08,   01,   $FF,     10
+        'DATA  01,  09,   55,   $FF,     08
+        'DATA  01,  10,   00,   $FF,     11
+
+
+
+  ' Add the variable to the event time in order to make the table start from 1 event further
+  ' variable = 1
+
+ x      DATA  01     ' ET Variable storage
+ RpCnt  DATA  9     ' First section storage
+
+ a      DATA  03       ' Wait Variable
+
+
 'reserve space for analog data collection
         ' Sensors read 3 times: 1st reading
 ADC00   DATA  00,  00,   00,   00,  00    'ADC_0_Init_Fail, ADC_0_Convrsn_Fail, ADC_0_S0, ADC_0_S1, ADC_0_S2
@@ -636,3 +813,45 @@ ADC02   DATA  00,  00,   00,   00,  00    'ADC_0_Init_Fail, ADC_0_Convrsn_Fail, 
 
 ADC12   DATA  00,  00,   00,   00,  00    'ADC_1_Init_Fail, ADC_1_Convrsn_Fail, ADC_1_S0, ADC_1_S1, ADC_1_S2
         DATA  00,  00,   00,   00,  00    'ADC_1_S3, ADC_1_S4, ADC_1_S5, ADC_1_S6, ADC_1_S7
+
+
+
+' ETable DATA  00,  23,   00,   $FF,     01   'Row 0
+'        DATA  00,  23,   10,   $FF,     02   'Row 1
+'        DATA  00,  23,   20,   $FF,     01   'Row 2
+'        DATA  01,  01,   00,   $FF,     05   'Row 3
+'        DATA  01,  01,   01,   $FF,     02   'Row 4
+'        DATA  01,  01,   02,   $FF,     02   'Row 5
+'        DATA  01,  01,   03,   $FF,     02   'Row 6
+'        DATA  01,  01,   04,   $FF,     01   'Row 7
+'        DATA  01,  03,   00,   $FF,     05   'Row 8
+'        DATA  01,  03,   04,   $FF,     02   'Row 9
+'        DATA  01,  03,   05,   $FF,     02   'Row 10
+'        DATA  01,  03,   06,   $FF,     02   'Row 11
+'        DATA  01,  03,   07,   $FF,     01   'Row 12
+'        DATA  01,  05,   00,   $FF,     05   'Row 13
+'        DATA  01,  05,   07,   $FF,     02   'Row 14
+'        DATA  01,  05,   08,   $FF,     02   'Row 15
+'        DATA  01,  05,   09,   $FF,     02   'Row 16
+'        DATA  01,  05,   10,   $FF,     01   'Row 17
+'        DATA  01,  07,   00,   $FF,     05   'Row 18
+'        DATA  01,  07,   10,   $FF,     02   'Row 19
+'        DATA  01,  07,   11,   $FF,     02   'Row 20
+'        DATA  01,  07,   12,   $FF,     02   'Row 21
+'        DATA  01,  07,   13,   $FF,     01   'Row 22
+'        DATA  01,  09,   00,   $FF,     05   'Row 23
+'        DATA  01,  09,   13,   $FF,     02   'Row 24
+'        DATA  01,  09,   14,   $FF,     02   'Row 25
+'        DATA  01,  09,   15,   $FF,     02   'Row 26
+'        DATA  01,  09,   16,   $FF,     01   'Row 27
+'        DATA  01,  11,   00,   $FF,     05   'Row 28
+'        DATA  01,  11,   16,   $FF,     02   'Row 29
+'        DATA  01,  11,   17,   $FF,     02   'Row 30
+'        DATA  01,  11,   18,   $FF,     02   'Row 31
+'        DATA  01,  11,   19,   $FF,     01   'Row 32
+'        DATA  01,  13,   00,   $FF,     05   'Row 33
+'        DATA  01,  13,   19,   $FF,     02   'Row 34
+'        DATA  01,  13,   20,   $FF,     02   'Row 35
+'        DATA  01,  13,   21,   $FF,     02   'Row 36
+'        DATA  01,  13,   22,   $FF,     01   'Row 37
+'        DATA  01,  16,   00,   $FF,     04   'Row 38
