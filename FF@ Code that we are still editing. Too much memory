@@ -619,6 +619,20 @@ Event5: DEBUG CR,"REB5: Replay10"
                            TempReg1 = TempReg1-1
                             WRITE RpCnt, TempReg1
                            STORE 4
+                           
+                            STORE 0
+                             WRITE DurDay,1 : WRITE DurHour,0 : WRITE DurMin,58 'Reset Event Table State
+                              STORE 2
+                                FOR TempReg0 = 1 TO 6
+                                WRITE ETable+(TempReg0*5)+3,$FF 'reset tag fields to allow a repeat cycle
+                              NEXT
+                              STORE DataStorage
+                              
+        tempReg0 = 4 'Destination Index (EventTableReturn)
+        RUN 0        'Destination Slot
+        
+                           
+                           
                            tempReg0 = 4 'Destination Index (EventTableReturn)
                            RUN 0        'Destination Slot
             END
