@@ -681,7 +681,7 @@ Event7: DEBUG CR,"REB7:++9x" ,CR
 
         STORE 2
         READ x,TempReg0
-       TempReg0=TempReg0+9
+       TempReg0=TempReg0+10
         WRITE x, TempReg0
         STORE 4
 
