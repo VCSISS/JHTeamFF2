@@ -619,33 +619,36 @@ Event5: DEBUG CR,"REB5: Replay10"
                            TempReg1 = TempReg1-1
                             WRITE RpCnt, TempReg1
                            STORE 4
-                           
-                            STORE 0
-                             WRITE DurDay,1 : WRITE DurHour,0 : WRITE DurMin,58 'Reset Event Table State
-                              STORE 2
-                                FOR TempReg0 = 1 TO 6
-                                WRITE ETable+(TempReg0*5)+3,$FF 'reset tag fields to allow a repeat cycle
-                              NEXT
-                              STORE DataStorage
-                              
-        tempReg0 = 4 'Destination Index (EventTableReturn)
-        RUN 0        'Destination Slot
-        
-                           
-                           
-                           tempReg0 = 4 'Destination Index (EventTableReturn)
-                           RUN 0        'Destination Slot
+
+
+
+
+                           STORE 0
+                           WRITE DurDay,1 : WRITE DurHour,0 : WRITE DurMin,58 'Reset Event Table State
+                           STORE 2
+                            FOR TempReg0 = 1 TO 6
+                            WRITE ETable+(TempReg0*5)+3,$FF 'reset tag fields to allow a repeat cycle
+                          NEXT
+                          STORE DataStorage
+                          tempReg0 = 4 'Destination Index (EventTableReturn)
+                          RUN 0        'Destination Slot
             END
 
              STORE 2
                READ a,TempReg0
-               TempReg0=TempReg0+2
+               TempReg0=5
                WRITE a, TempReg0
                STORE 4
 
                STORE 2
                READ x,TempReg0
                TempReg0=1
+               WRITE x, TempReg0
+               STORE 4
+
+               STORE 2
+               READ RpCnt,TempReg0
+               TempReg0= 9
                WRITE x, TempReg0
                STORE 4
 
@@ -668,15 +671,15 @@ Event5: DEBUG CR,"REB5: Replay10"
 
 Event6: DEBUG CR,"REB6:Replay13" ,CR
 
-        STORE 2
-        READ x,TempReg0
-       TempReg0=TempReg0-9
-        WRITE x, TempReg0
-        STORE 4
+'        STORE 2
+'        READ x,TempReg0
+'       TempReg0=TempReg0-9
+'        WRITE x, TempReg0
+'        STORE 4
 
              STORE 2
                READ a,TempReg0
-               TempReg0=TempReg0-2
+               TempReg0=3
                WRITE a, TempReg0
                STORE 4
 
@@ -691,7 +694,7 @@ Event6: DEBUG CR,"REB6:Replay13" ,CR
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0        'Destination Slot
 
-Event7: DEBUG CR,"REB7:++9x" ,CR
+Event7: DEBUG CR,"REB7:+10x" ,CR
 
         STORE 2
         READ x,TempReg0
@@ -704,7 +707,7 @@ Event7: DEBUG CR,"REB7:++9x" ,CR
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0        'Destination Slot
 
-Event8: DEBUG CR,"REB8:--19x & Lo res" ,CR
+Event8: DEBUG CR,"REB8:-19x & Lo res" ,CR
 
         STORE 2
         READ x,TempReg0
@@ -762,8 +765,8 @@ P3vector:
         DATA  01,  01,   30,   $FF,     08   'Row 8
     '   DATA  01,  01,   32,   $FF,     06
         DATA  01,   a,   00,   $FF,     05   'Row 9
-        DATA  01,   a,   01,   $FF,     03   'Row 10
-        DATA  01,  05,   20,   $FF,     06   'Row 11
+        DATA  01,   a,   01,   $FF,     03
+        DATA  01,  05,   20,   $FF,     06   'Row 10
         'DATA  01,  04,   00,   $FF,     05
         'DATA  01,  04,    x,   $FF,     02
         'DATA  01,  04,    y,   $FF,     02
