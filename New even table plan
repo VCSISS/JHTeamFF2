@@ -1,0 +1,67 @@
+ETable  DATA  00,  23,   00,   $FF,     00   'Row 0
+        DATA  00,  23,   10,   $FF,     01   'Row 1
+        DATA  00,  23,   20,   $FF,     01   'Row 2
+
+        DATA  01,  01,   00,   $FF,     03   'Row 3
+        DATA  01,  01,   01,   $FF,     01   'Row 4
+        DATA  01,  01,   11,   $FF,     01   'Row 5
+        DATA  01,  01,   15,   $FF,     04   'Row 6
+        DATA  01,  01,   21,   $FF,     01   'Row 7
+
+        DATA  01,  03,   00,   $FF,     03   'Row 8
+        DATA  01,  03,   02,   $FF,     01   'Row 9
+        DATA  01,  03,   12,   $FF,     01   'Row 10
+        DATA  01,  03,   15,   $FF,     04   'Row 11
+        DATA  01,  03,   22,   $FF,     01   'Row 12
+
+        DATA  01,  05,   00,   $FF,     03   'Row 13
+        DATA  01,  05,   03,   $FF,     01   'Row 14
+        DATA  01,  05,   13,   $FF,     01   'Row 15
+        DATA  01,  05,   15,   $FF,     04   'Row 16
+        DATA  01,  05,   23,   $FF,     01   'Row 17
+
+        DATA  01,  07,   00,   $FF,     03   'Row 18
+        DATA  01,  07,   04,   $FF,     01   'Row 19
+        DATA  01,  07,   14,   $FF,     01   'Row 20
+        DATA  01,  07,   15,   $FF,     04   'Row 21
+        DATA  01,  07,   24,   $FF,     01   'Row 22
+
+        DATA  01,  09,   00,   $FF,     03   'Row 23
+        DATA  01,  09,   05,   $FF,     01   'Row 24
+        DATA  01,  09,   15,   $FF,     04   'Row 25           THIS ONE IS DIFFERENT
+        DATA  01,  09,   25,   $FF,     01   'Row 26
+
+        DATA  01,  11,   00,   $FF,     03   'Row 27
+        DATA  01,  11,   06,   $FF,     01   'Row 28
+        DATA  01,  11,   15,   $FF,     04   'Row 29
+        DATA  01,  11,   16,   $FF,     01   'Row 30
+        DATA  01,  11,   26,   $FF,     01   'Row 31
+
+        DATA  01,  13,   00,   $FF,     03   'Row 32
+        DATA  01,  13,   07,   $FF,     01   'Row 33
+        DATA  01,  13,   15,   $FF,     04   'Row 34
+        DATA  01,  13,   17,   $FF,     01   'Row 35
+        DATA  01,  13,   27,   $FF,     01   'Row 36
+
+        DATA  01,  15,   00,   $FF,     03   'Row 37
+        DATA  01,  15,   08,   $FF,     01   'Row 38
+        DATA  01,  15,   15,   $FF,     04   'Row 39
+        DATA  01,  15,   18,   $FF,     01   'Row 40
+        DATA  01,  15,   28,   $FF,     01   'Row 41
+
+
+        DATA  01,  18,   00,   $FF,     03   'Row 42
+        DATA  01,  18,   09,   $FF,     01   'Row 43
+        DATA  01,  18,   15,   $FF,     04   'Row 44
+        DATA  01,  18,   19,   $FF,     01   'Row 45
+        DATA  01,  18,   29,   $FF,     01   'Row 46
+
+
+        DATA  01,  20,   00,   $FF,     03   'Row 47
+        DATA  01,  20,   10,   $FF,     01   'Row 48
+        DATA  01,  20,   15,   $FF,     04   'Row 49
+        DATA  01,  20,   20,   $FF,     01   'Row 50
+        DATA  01,  20,   30,   $FF,     01   'Row 51
+
+
+        DATA  01,  21,   30,   $FF,     02   'Row 52
